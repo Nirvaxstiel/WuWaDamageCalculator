@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electro Damage Calculator</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        .preset-container {
+            margin-top: 20px;
+        }
+
+        .latex {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .title {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .formula-line {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/contrib/auto-render.min.js" defer onload="renderMathInElement(document.body);"></script>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Electro Damage Calculator</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <button class="btn btn-primary" id="addPresetBtn"><i class="fas fa-plus"></i> Add Preset</button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center" id="presetsContainer">
+            <div class="col-md-6 preset-container" id="preset1">
+                <!-- Preset form will be dynamically generated here -->
+            </div>
+        </div>
+
+        <button class="btn btn-secondary mt-4" id="newPresetBtn" style="display:none;">Start New Preset</button>
+        <div id="comparisonContainer" class="mt-4"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script>
+        const mods = [
+            { value: "none", text: "None", cost: 0 },
+            { value: "ATK", text: "ATK% (1 COST)", cost: 1 },
+            { value: "ATK3COST", text: "ATK% (3 COST)", cost: 3 },
+            { value: "CRIT Rate", text: "CRIT Rate (4 COST)", cost: 4 },
+            { value: "CRIT Damage", text: "CRIT Damage (4 COST)", cost: 4 },
+            { value: "Elemental Bonus DMG", text: "Elemental Bonus DMG+ (3 COST)", cost: 3 }
+        ];
+
+        let presetCount = 1;
+
+        function createPreset(presetId) {
+            const presetContainer = document.getElementById(`preset${presetId}`);
+            const presetForm = `
+                <div class="card">
+                    <div class="card-header">
+                        <input type="text" class="form-control" id="presetName${presetId}" placeholder="Preset Name" />
+                        <button class="btn remove-preset-btn" onclick="removePreset(${presetId})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="modContainer${presetId}"></div>
+                        <hr>
+                        <h5>Sub-stats/Other Bonuses</h5>
+                        <label for="totalAtkBonus${presetId}">Total ATK% Bonus:</label>
+                        <input type="number" id="totalAtkBonus${presetId}" class="form-control" value="0" onchange="updateDamage(${presetId})" min="0">
+                        <label for="totalElemBonus${presetId}">Total Elemental DMG% Bonus:</label>
+                        <input type="number" id="totalElemBonus${presetId}" class="form-control" value="0" onchange="updateDamage(${presetId})" min="0">
+                        <label for="totalCritRate${presetId}">Total CRIT Rate% Bonus:</label>
+                        <input type="number" id="totalCritRateBonus${presetId}" class="form-control" value="0" onchange="updateDamage(${presetId})" min="0">
+                        <label for="totalCritDamage${presetId}">Total CRIT Damage% Bonus:</label>
+                        <input type="number" id="totalCritDamageBonus${presetId}" class="form-control" value="0" onchange="updateDamage(${presetId})" min="0">
+                        <div class="cost mt-3" id="totalCost${presetId}">Total Cost: 0 / 12</div>
+                        <div class="latex mt-3" id="formula${presetId}"></div>
+                        <div class="result mt-3" id="result${presetId}"></div>
+                    </div>
+                </div>
+            `;
+
+            presetContainer.innerHTML = presetForm;
+
+            const modContainer = document.getElementById(`modContainer${presetId}`);
+            for (let i = 1; i <= 5; i++) {
+                const label = document.createElement('label');
+                label.setAttribute('for', `mod${presetId}_${i}`);
+                label.textContent = `Slot ${i}:`;
+                const select = document.createElement('select');
+                select.id = `mod${presetId}_${i}`;
+                select.className = "form-control select2";
+                select.onchange = () => updateDamage(presetId);
+
+                mods.forEach(mod => {
+                    const option = document.createElement('option');
+                    option.value = mod.value;
+                    option.textContent = mod.text;
+                    option.dataset.cost = mod.cost;
+                    select.appendChild(option);
+                });
+
+                modContainer.appendChild(label);
+                modContainer.appendChild(select);
+            }
+
+            $(`#preset${presetId} .select2`).select2();
+        }
+
+        function updateCost(presetId) {
+            let totalCost = 0;
+            for (let i = 1; i <= 5; i++) {
+                const select = document.getElementById(`mod${presetId}_${i}`);
+                totalCost += parseInt(select.options[select.selectedIndex].getAttribute('data-cost'));
+            }
+            document.getElementById(`totalCost${presetId}`).innerText = `Total Cost: ${totalCost} / 12`;
+            return totalCost;
+        }
+
+        function updateDamage(presetId) {
+            const totalCost = updateCost(presetId);
+            if (totalCost > 12) {
+                document.getElementById(`result${presetId}`).innerText = "Total cost exceeds 12. Please adjust your selections.";
+                return;
+            }
+
+            const inputAtkBonus = document.getElementById(`totalAtkBonus${presetId}`).value;
+            const inputElemBonus = document.getElementById(`totalElemBonus${presetId}`).value;
+            const inputCritRateBonus = document.getElementById(`totalCritRateBonus${presetId}`).value;
+            const inputCritDamageBonus = document.getElementById(`totalCritDamageBonus${presetId}`).value;
+
+            let atkBonus = (inputAtkBonus ? parseFloat(inputAtkBonus) : 0) / 100;
+            let elementalBonus = (inputElemBonus ? parseFloat(inputElemBonus) : 0) / 100 + 1;
+            let critRateBonus = (inputCritRateBonus ? parseFloat(inputCritRateBonus) : 0) / 100;
+            let critDamageBonus = (inputCritDamageBonus ? parseFloat(inputCritDamageBonus) : 0) / 100 + 1;
+
+            let critRate = 0.0 + critRateBonus; // Base CRIT Rate is 5%
+            let critDamage = 1.5 + critDamageBonus; // Base CRIT Damage is 150%
+            let atkMods = 0, atk3Mods = 0, critRateMods = 0, critDamageMods = 0, elementalMods = 0;
+
+            for (let i = 1; i <= 5; i++) {
+                const select = document.getElementById(`mod${presetId}_${i}`);
+                const value = select.value;
+
+                if (value === "ATK") {
+                    atkBonus += 0.18;
+                    atkMods++;
+                } else if (value === "ATK3COST") {
+                    atkBonus += 0.30;
+                    atk3Mods++;
+                } else if (value === "CRIT Rate") {
+                    critRate += 0.22;
+                    critRateMods++;
+                } else if (value === "CRIT Damage") {
+                    critDamage += 0.44;
+                    critDamageMods++;
+                } else if (value === "Elemental Bonus DMG") {
+                    elementalBonus += 0.30;
+                    elementalMods++;
+                }
+            }
+
+            const baseDamage = 1 * (1.00 + atkBonus);
+            const nonCritDamage = baseDamage * (1 - critRate);
+            const critDamageOutput = baseDamage * (critDamage + 1) * critRate;
+            const totalDamage = (nonCritDamage + critDamageOutput) * elementalBonus;
+
+            let atkBonusText = atkMods > 0 ? `(18\\% \\times ${atkMods})` : '';
+            let atk3BonusText = atk3Mods > 0 ? `30\\% \\times ${atk3Mods}` : '';
+            let setAtkBonusText = parseFloat(document.getElementById(`totalAtkBonus${presetId}`).value) > 0 ? ` ${parseFloat(document.getElementById(`totalAtkBonus${presetId}`).value)}\\%` : '';
+            let atkText = [atkBonusText, atk3BonusText, setAtkBonusText].filter(Boolean).join(' + ');
+
+            const formula = `
+                \\begin{aligned}
+                & \\text{Base Damage:} & 1 ${atkText ? '+' : ''} ${atkText} = ${baseDamage.toFixed(2)} \\\\
+                & \\text{Non-Crit Damage:} & (1 - ${critRate.toFixed(2)}) \\times ${baseDamage.toFixed(2)} = ${nonCritDamage.toFixed(2)} \\\\
+                & \\text{Crit Damage:} & ${critRate.toFixed(2)} \\times ${baseDamage.toFixed(2)} \\times (${critDamage.toFixed(2)} + 1) = ${critDamageOutput.toFixed(2)} \\\\
+                & \\text{Total Damage:} & (${nonCritDamage.toFixed(2)} + ${critDamageOutput.toFixed(2)}) \\times ${elementalBonus.toFixed(2)} = ${totalDamage.toFixed(2)}
+                \\end{aligned}
+            `;
+
+            document.getElementById(`formula${presetId}`).innerHTML = `
+                \\[
+                ${formula}
+                \\]
+            `;
+            renderMathInElement(document.getElementById(`formula${presetId}`), {
+                delimiters: [
+                    { left: "\\[", right: "\\]", display: true }
+                ]
+            });
+            document.getElementById(`result${presetId}`).innerText = `Total Damage: ${totalDamage.toFixed(2)}`;
+
+            updateComparison();
+        }
+
+        function updateComparison() {
+            const presets = document.querySelectorAll('.preset-container');
+            if (presets.length < 2) {
+                document.getElementById('comparisonContainer').innerHTML = '';
+                return;
+            }
+
+            let comparisonHtml = '<h4>Damage Comparison</h4><ul class="list-group">';
+            presets.forEach(preset => {
+                const presetId = preset.id.replace('preset', '');
+                const presetName = document.getElementById(`presetName${presetId}`).value || `Preset ${presetId}`;
+                const totalDamage = document.getElementById(`result${presetId}`).innerText.replace('Total Damage: ', '');
+                comparisonHtml += `<li class="list-group-item">${presetName}: ${totalDamage}</li>`;
+            });
+            comparisonHtml += '</ul>';
+
+            document.getElementById('comparisonContainer').innerHTML = comparisonHtml;
+        }
+
+        function addPreset() {
+            presetCount++;
+            const newPresetContainer = document.createElement('div');
+            newPresetContainer.className = "col-md-6 preset-container";
+            newPresetContainer.id = `preset${presetCount}`;
+            document.getElementById('presetsContainer').appendChild(newPresetContainer);
+            createPreset(presetCount);
+        }
+
+        function removePreset(presetId) {
+            const presetContainer = document.getElementById(`preset${presetId}`);
+            presetContainer.parentNode.removeChild(presetContainer);
+
+            if (document.querySelectorAll('.preset-container').length === 0) {
+                document.getElementById('newPresetBtn').style.display = 'block';
+                document.getElementById('comparisonContainer').innerHTML = '';
+            } else {
+                updateComparison();
+            }
+        }
+
+        document.getElementById('addPresetBtn').addEventListener('click', addPreset);
+        document.getElementById('newPresetBtn').addEventListener('click', () => {
+            const newPresetContainer = document.createElement('div');
+            newPresetContainer.className = "col-md-6 preset-container";
+            newPresetContainer.id = `preset${++presetCount}`;
+            document.getElementById('presetsContainer').appendChild(newPresetContainer);
+            createPreset(presetCount);
+            document.getElementById('newPresetBtn').style.display = 'none';
+        });
+
+        // Initialize the first preset
+        createPreset(1);
+    </script>
+</body>
+
+</html>
