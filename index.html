@@ -284,7 +284,7 @@
             let atkBonus = (inputAtkBonus ? parseFloat(inputAtkBonus) : 0) / 100;
             let elementalBonus = (inputElemBonus ? parseFloat(inputElemBonus) : 0) / 100 + 1;
             let critRateBonus = (inputCritRateBonus ? parseFloat(inputCritRateBonus) : 0) / 100;
-            let critDamageBonus = (inputCritDamageBonus ? parseFloat(inputCritDamageBonus) : 0) / 100 + 1;
+            let critDamageBonus = (inputCritDamageBonus ? parseFloat(inputCritDamageBonus) : 0) / 100;
 
             let critRate = 0.05 + critRateBonus; // Base CRIT Rate is 5%
             let critDamage = 1.5 + critDamageBonus; // Base CRIT Damage is 150%
@@ -311,6 +311,7 @@
                     elementalMods++;
                 }
             }
+            
 
             const baseDamage = 1 * (1.00 + atkBonus);
             const nonCritDamage = baseDamage * (1 - critRate);
