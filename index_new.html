@@ -72,8 +72,6 @@
             transition: box-shadow 0.3s ease-in-out;
         }
 
-
-
         .dragging {
             transform: rotate(5deg);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -232,6 +230,13 @@
         .icon-rotate {
             transition: transform 0.25s;
         }
+
+        .katex-content {
+            overflow-wrap: break-word;
+            word-break: break-all;
+            font-size: 0.8rem;
+            line-height: 1.2;
+        }
     </style>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.min.js"></script>
@@ -335,7 +340,9 @@
                             <div class="cost mt-3" v-model="item.totalCost" v-bind:id="`totalCost${item.presetId}`">
                                 Total Cost: {{ item.totalCost }}
                             </div>
-                            <div class="latex mt-3" v-bind:id="`formula${item.presetId}`" v-html="item.formula"></div>
+                            <div class="katex-content mt-3">
+                                <div class="latex" v-bind:id="`formula${item.presetId}`" v-html="item.formula"></div>
+                            </div>
                             <div class="result mt-3" v-model="item.result" v-bind:id="`result${item.presetId}`">
                                 {{ item.result }}
                             </div>
@@ -592,6 +599,9 @@
                     },
                     addPreset: function () {
                         this.buildPresets.push(buildPresets(this.presetCount));
+                        this.$nextTick(function () {
+                            rerenderSelect2(this);
+                        });
                     },
                     removePreset: function (presetId) {
                         const index = this.buildPresets.findIndex(item => item.presetId === presetId);
@@ -610,21 +620,23 @@
                     }
                 },
                 created: function () {
-                    const that = this;
-                    that.addPreset();
-                    that.$nextTick(function () {
-                        $('.select2').each(function () {
-                            $(this).select2();
-                            $(this).on('change', (event) => {
-                                const presetId = event.target.id.split('_')[0].replace('mod', '');
-                                const index = event.target.id.split('_')[1];
-                                that.onEchoSlotChange(event, presetId, index);
-                            });
-                        });
-                    })
-
+                    this.addPreset();
+                    this.$nextTick(function () {
+                        rerenderSelect2(this);
+                    });
                 }
             });
+
+            function rerenderSelect2(vueContext) {
+                $('.select2').each(function () {
+                    $(this).select2();
+                    $(this).on('change', (event) => {
+                        const presetId = event.target.id.split('_')[0].replace('mod', '');
+                        const index = event.target.id.split('_')[1];
+                        vueContext.onEchoSlotChange(event, presetId, index);
+                    });
+                });
+            }
         });
     </script>
 </body>
