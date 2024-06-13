@@ -554,7 +554,7 @@
                         const data = [];
 
                         this.buildPresets.forEach((buildPreset, index) => {
-                            const name = `Preset ${index + 1}`;
+                            let name = `Preset ${index + 1}`;
                             if (buildPreset.presetName) {
                                 name = buildPreset.presetName
                             }
