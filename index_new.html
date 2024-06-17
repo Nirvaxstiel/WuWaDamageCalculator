@@ -42,7 +42,7 @@
 
         .card {
             border: none;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
         .draggable {
@@ -67,8 +67,7 @@
 
         .chosen {
             background-color: #e9ecef;
-            background-color: 0 0 0px rgba(0, 0, 0, 0.5), 0px 0px 10px rgba(0, 0, 0, 0.5);
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 0px rgba(0, 0, 0, 0.5), 0px 0px 10px rgba(0, 0, 0, 0.5);
             border-radius: 10px;
             transition: box-shadow 0.3s ease-in-out;
         }
@@ -114,8 +113,26 @@
         }
 
         body.dark-mode .card {
+            border: none;
+            box-shadow: 0 0px 10px rgba(233, 233, 233, 0.404);
             background-color: #495057;
             color: #f8f9fa;
+        }
+
+        body.dark-mode .card-header {
+            background-color: #495057;
+            color: #f8f9fa;
+        }
+
+        body.dark-mode .chosen {
+            background-color: rgba(233, 233, 233, 0.404);
+            box-shadow: 0 0 0px rgba(233, 233, 233, 0.404), 0px 0px 10px rgba(233, 233, 233, 0.404);
+            border-radius: 10px;
+            transition: box-shadow 0.3s ease-in-out;
+        }
+
+        body.dark-mode .navbar {
+            box-shadow: 0 0.5rem 1rem rgba(233, 233, 233, 0.404) !important;
         }
 
         body.dark-mode .navbar,
@@ -251,7 +268,7 @@
 
 <body>
     <div id="app">
-        <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+        <nav class="navbar rounded navbar-expand-lg navbar-light bg-light shadow">
             <div class="container-fluid">
                 <a class="navbar-brand" href="#">WuWa Damage Calculator</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
@@ -285,10 +302,10 @@
             <draggable tag="div" class="row justify-content-center" id="presetsContainer" v-model="buildPresets"
                 v-animation="200" :ghost-class="'ghost'" :chosen-class="'chosen'" :drag-class="'dragging'"
                 :handle="'.draggable'">
-                <div class="col-sm-6 col-md-6 col-lg-6 mb-4" v-for="item in buildPresets" :key="item.presetId">
-                    <div class="card draggable-element">
+                <div class="col-sm-6 col-md-6 col-lg-6 mb-4 p-0" v-for="item in buildPresets" :key="item.presetId">
+                    <div class="card draggable-element me-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <i class="fas fa-grip-horizontal text-secondary draggable me-2"></i>
+                            <i class="fas fa-grip-horizontal draggable me-2"></i>
                             <input type="text" class="form-control" v-model="item.presetName"
                                 v-bind:id="`presetName${item.presetId}`" placeholder="Preset Name"
                                 style="flex-grow: 1; margin-right: 10px;" />
@@ -366,9 +383,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script>
         $(document).ready(function () {
+            function saveDataToLocalStorage(data) {
+                localStorage.setItem('appData', JSON.stringify(data));
+            }
+
+            function loadDataFromLocalStorage() {
+                const data = localStorage.getItem('appData');
+                return data ? JSON.parse(data) : { darkMode: false, someOtherState: '' };
+            }
+
+            const initialData = loadDataFromLocalStorage();
+
             const app = new Vue({
                 el: '#app',
-                data: {
+                data: initialData || {
                     buildPresets: [],
                     mods: [
                         { value: "none", text: "None", cost: 0 },
@@ -386,24 +414,37 @@
                     },
                     echoSlotsCount: 5,
                     maxEchoCost: 12,
+                    isDarkMode: false
                 },
                 components: {
                     draggable: window['vuedraggable']
                 },
                 computed: {
-                    slotIterations: function () {
+                    slotIterations() {
                         return Array.from({ length: this.echoSlotsCount }, (v, k) => k + 1);
                     },
-                    presetCount: function () {
+                    presetCount() {
                         return this.buildPresets.length;
                     },
                     iconClass() {
                         return this.darkMode ? 'fas fa-sun text-warning' : 'fas fa-moon text-light';
-                    },
+                    }
                 },
                 filters: {},
+                watch: {
+                    // Watch the entire data object and save to LocalStorage on change
+                    '$data': {
+                        handler(data) {
+                            saveDataToLocalStorage(data);
+                        },
+                        deep: true
+                    }
+                },
                 methods: {
-                    toggleDarkMode: function () {
+                    hasDarkMode() {
+                        return $('body').hasClass('dark-mode');
+                    },
+                    toggleDarkMode() {
                         const body = $('body');
                         const icon = $('#darkModeToggle i');
 
@@ -412,11 +453,11 @@
 
                         setTimeout(() => {
                             body.toggleClass('dark-mode');
+                            this.isDarkMode = !this.isDarkMode;
                             screenWipe.remove();
-
                             icon.addClass('icon-rotate');
                             setTimeout(() => {
-                                if (body.hasClass('dark-mode')) {
+                                if (this.isDarkMode) {
                                     icon.attr('class', 'fas fa-sun text-warning');
                                 } else {
                                     icon.attr('class', 'fas fa-moon text-light');
@@ -425,7 +466,7 @@
                             }, 250);
                         }, 125);
                     },
-                    getTotalEchoCost: function (presetId) {
+                    getTotalEchoCost(presetId) {
                         const id = parseInt(presetId)
                         const buildPreset = this.buildPresets.find(item => item.presetId === id);
                         const echoes = buildPreset.equippedEchoes;
@@ -440,14 +481,14 @@
                         }, 0);
                         return cost;
                     },
-                    onEchoSlotChange: function (event, presetId, index) {
+                    onEchoSlotChange(event, presetId, index) {
                         const selectedValue = event.target.value;
                         const selectedMod = this.mods.find(mod => mod.value === selectedValue);
                         if (selectedMod) {
                             this.equipEchoSlot(presetId, index, selectedMod);
                         }
                     },
-                    equipEchoSlot: function (presetId, index, self) {
+                    equipEchoSlot(presetId, index, self) {
                         const item = this.buildPresets.find(preset => preset.presetId == presetId);
                         if (!item) {
                             return;
@@ -456,7 +497,7 @@
                         item.totalCost = this.getTotalEchoCost(presetId);
                         this.updateDamage(presetId);
                     },
-                    updateDamage: function (presetId) {
+                    updateDamage(presetId) {
                         const item = this.buildPresets.find(preset => preset.presetId == presetId);
                         if (!item) {
                             return;
@@ -538,7 +579,7 @@
                         item.totalExpectedDamage = totalDamage
                         this.updateComparison();
                     },
-                    updateComparison: function () {
+                    updateComparison() {
                         if (this.buildPresets.length < 2) {
                             $('#comparisonContainer').html('<canvas id="comparisonChart"></canvas>');
                             return;
@@ -584,7 +625,7 @@
                             });
                         }
                     },
-                    addPreset: function () {
+                    addPreset() {
                         const preset = newPreset(this.presetCount);
                         this.buildPresets.push(preset);
                         this.$nextTick(function () {
@@ -592,7 +633,7 @@
                             this.updateDamage(preset.presetId);
                         });
                     },
-                    removePreset: function (presetId) {
+                    removePreset(presetId) {
                         const index = this.buildPresets.findIndex(item => item.presetId === presetId);
                         if (index !== -1) {
                             this.buildPresets.splice(index, 1);
@@ -608,8 +649,21 @@
                         }
                     }
                 },
-                created: function () {
-                    this.addPreset();
+                created() {
+                    if (!initialData) {
+                        this.addPreset();
+                    } else {
+                        this.$nextTick(() => {
+                            this.updateComparison();
+                        });
+                        const isDarkMode = this.hasDarkMode();
+                        if (this.isDarkMode && !isDarkMode) {
+                            this.isDarkMode = false; // switch to light mode before togging dark mode
+                            this.toggleDarkMode();
+                        }else if(!this.isDarkMode && isDarkMode){
+                            this.toggleDarkMode();
+                        }
+                    }
                 }
             });
 
