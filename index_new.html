@@ -67,14 +67,15 @@
 
         .chosen {
             background-color: #e9ecef;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1), 0 0 20px rgba(0, 0, 0, 0.05);
+            background-color: 0 0 0px rgba(0, 0, 0, 0.5), 0px 0px 10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             border-radius: 10px;
             transition: box-shadow 0.3s ease-in-out;
         }
 
         .dragging {
             transform: rotate(5deg);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: none !important;
         }
 
         .card-header {
@@ -282,8 +283,9 @@
 
         <div class="container mt-4">
             <draggable tag="div" class="row justify-content-center" id="presetsContainer" v-model="buildPresets"
-                v-animation="200" :ghost-class="'ghost'" :chosen-class="'chosen'" :drag-class="'dragging'">
-                <div class="col-sm-6 col-md-4 col-lg-4 mb-4" v-for="item in buildPresets" :key="item.presetId">
+                v-animation="200" :ghost-class="'ghost'" :chosen-class="'chosen'" :drag-class="'dragging'"
+                :handle="'.draggable'">
+                <div class="col-sm-6 col-md-6 col-lg-6 mb-4" v-for="item in buildPresets" :key="item.presetId">
                     <div class="card draggable-element">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <i class="fas fa-grip-horizontal text-secondary draggable me-2"></i>
@@ -294,7 +296,7 @@
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <div class="card-body draggable-element-body">
+                        <div class="card-body draggable-element-body form">
                             <div v-bind:id="`modContainer${item.presetId}`">
                                 <div v-for="(iter, index) in slotIterations" class="mb-2 small">
                                     <label v-bind:for="`mod${item.presetId}_${index}`">Slot {{index + 1}}</label>
@@ -338,13 +340,13 @@
                                 v-on:change="updateDamage(item.presetId)" min="0">
 
                             <div class="cost mt-3" v-model="item.totalCost" v-bind:id="`totalCost${item.presetId}`">
-                                Total Cost: {{ item.totalCost }}
+                                <h4>Total Cost: {{ item.totalCost }}</h4>
                             </div>
                             <div class="katex-content mt-3">
                                 <div class="latex" v-bind:id="`formula${item.presetId}`" v-html="item.formula"></div>
                             </div>
                             <div class="result mt-3" v-model="item.result" v-bind:id="`result${item.presetId}`">
-                                {{ item.result }}
+                                <h4> {{ item.result }}</h4>
                             </div>
                         </div>
                     </div>
@@ -363,21 +365,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script>
-        function buildPresets(presetId) {
-            return {
-                presetId: presetId,
-                presetName: '',
-                totalAtkBonus: 0,
-                totalElemBonus: 0,
-                totalCritRateBonus: 0,
-                totalCritDamageBonus: 0,
-                formula: '',
-                result: '',
-                equippedEchoes: Array(5).fill({}),
-                totalCost: 0,
-                totalExpectedDamage: 0
-            }
-        }
         $(document).ready(function () {
             const app = new Vue({
                 el: '#app',
@@ -598,9 +585,11 @@
                         }
                     },
                     addPreset: function () {
-                        this.buildPresets.push(buildPresets(this.presetCount));
+                        const preset = newPreset(this.presetCount);
+                        this.buildPresets.push(preset);
                         this.$nextTick(function () {
                             rerenderSelect2(this);
+                            this.updateDamage(preset.presetId);
                         });
                     },
                     removePreset: function (presetId) {
@@ -621,9 +610,6 @@
                 },
                 created: function () {
                     this.addPreset();
-                    this.$nextTick(function () {
-                        rerenderSelect2(this);
-                    });
                 }
             });
 
@@ -636,6 +622,22 @@
                         vueContext.onEchoSlotChange(event, presetId, index);
                     });
                 });
+            }
+
+            function newPreset(presetId) {
+                return {
+                    presetId: presetId,
+                    presetName: '',
+                    totalAtkBonus: 0,
+                    totalElemBonus: 0,
+                    totalCritRateBonus: 0,
+                    totalCritDamageBonus: 0,
+                    formula: '',
+                    result: '',
+                    equippedEchoes: Array(5).fill({}),
+                    totalCost: 0,
+                    totalExpectedDamage: 0
+                }
             }
         });
     </script>
