@@ -484,6 +484,7 @@
                 if (data.allowCookies) {
                     localStorage.setItem('appData', JSON.stringify(data));
                 } else {
+                    localStorage.removeItem('appData');
                     console.warn('Cookies are not accepted. Only store when user accepts.');
                 }
             }
@@ -524,12 +525,12 @@
                 methods: {
                     acceptCookies() {
                         this.allowCookies = true;
-                        $('#cookieBanner').hide();
+                        $('#cookieBanner').toggleClass('active');
                     },
 
                     declineCookies() {
                         this.allowCookies = false;
-                        $('#cookieBanner').hide();
+                        $('#cookieBanner').toggleClass('active');
                     },
                     toggleCookiesBanner() {
                         $('#cookieBanner').toggleClass('active');
