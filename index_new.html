@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WuWa Damage Calculator</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -15,6 +16,34 @@
             font-size: 1rem;
             color: #333;
             margin: 20px;
+        }
+
+        .cookie-consent-banner {
+            width: 100%;
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+            -webkit-transform: translateY(0%);
+            -moz-transform: translateY(0%);
+            transform: translateY(0%);
+            -webkit-transition: all 1s ease-in-out;
+            -moz-transition: all 1s ease-in-out;
+            transition: all 1s ease-in-out;
+        }
+
+        .cookie-consent-banner.active {
+            display: block;
+        }
+
+        .cookie-consent-banner p {
+            margin-bottom: 5px;
+        }
+
+        .cookie-consent-banner .btn {
+            margin-top: 5px;
         }
 
         .preset-container {
@@ -256,7 +285,12 @@
             line-height: 1.2;
         }
     </style>
+
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.3/dist/contrib/auto-render.min.js" defer
         onload="renderMathInElement(document.body);"></script>
@@ -271,10 +305,17 @@
         <nav class="navbar rounded navbar-expand-lg navbar-light bg-light shadow">
             <div class="container-fluid">
                 <a class="navbar-brand" href="#">WuWa Damage Calculator</a>
+
+                <button class="btn btn-outline-light" id="cookiesSettings" @click="toggleCookiesBanner">
+                    <i class="fas fa-cookie-bite text-secondary"></i>
+                    Cookies Settings
+                </button>
+
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                     aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
+
                 <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                     <ul class="navbar-nav">
                         <li class="nav-item">
@@ -297,6 +338,13 @@
                 </div>
             </div>
         </nav>
+
+        <div class="cookie-consent-banner bg-info text-light p-3 text-center" id="cookieBanner">
+            <p>We use cookies to store your preferences like dark mode and previous build presets. You can check what
+                cookies are stored in your browser settings.</p>
+            <button class="btn btn-success" @click="acceptCookies">Accept</button>
+            <button class="btn btn-danger" @click="declineCookies">Decline</button>
+        </div>
 
         <div class="container mt-4">
             <draggable tag="div" class="row justify-content-center" id="presetsContainer" v-model="buildPresets"
@@ -378,25 +426,22 @@
             </div>
         </div>
     </div>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
     <script>
-        $(document).ready(function () {
-            function saveDataToLocalStorage(data) {
-                localStorage.setItem('appData', JSON.stringify(data));
+        $(function () {
+            function rerenderSelect2(vueContext) {
+                $('.select2').each(function () {
+                    $(this).select2();
+                    $(this).on('change', (event) => {
+                        const presetId = event.target.id.split('_')[0].replace('mod', '');
+                        const index = event.target.id.split('_')[1];
+                        vueContext.onEchoSlotChange(event, presetId, index);
+                    });
+                });
             }
 
-            function loadDataFromLocalStorage() {
-                const data = localStorage.getItem('appData');
-                return data ? JSON.parse(data) : { darkMode: false, someOtherState: '' };
-            }
-
-            const initialData = loadDataFromLocalStorage();
-
-            const app = new Vue({
-                el: '#app',
-                data: initialData || {
+            function defaultAppData() {
+                return {
                     buildPresets: [],
                     mods: [
                         { value: "none", text: "None", cost: 0 },
@@ -414,8 +459,45 @@
                     },
                     echoSlotsCount: 5,
                     maxEchoCost: 12,
-                    isDarkMode: false
-                },
+                    isDarkMode: false,
+                    allowCookies: false
+                }
+            }
+
+            function newPreset(presetId) {
+                return {
+                    presetId: presetId,
+                    presetName: '',
+                    totalAtkBonus: 0,
+                    totalElemBonus: 0,
+                    totalCritRateBonus: 0,
+                    totalCritDamageBonus: 0,
+                    formula: '',
+                    result: '',
+                    equippedEchoes: Array(5).fill({}),
+                    totalCost: 0,
+                    totalExpectedDamage: 0
+                }
+            }
+
+            function saveDataToLocalStorage(data) {
+                if (data.allowCookies) {
+                    localStorage.setItem('appData', JSON.stringify(data));
+                } else {
+                    console.warn('Cookies are not accepted. Only store when user accepts.');
+                }
+            }
+
+            function loadDataFromLocalStorage() {
+                const data = localStorage.getItem('appData');
+                return data ? JSON.parse(data) : defaultAppData;
+            }
+
+            const initialData = loadDataFromLocalStorage();
+
+            const app = new Vue({
+                el: '#app',
+                data: initialData,
                 components: {
                     draggable: window['vuedraggable']
                 },
@@ -432,7 +514,6 @@
                 },
                 filters: {},
                 watch: {
-                    // Watch the entire data object and save to LocalStorage on change
                     '$data': {
                         handler(data) {
                             saveDataToLocalStorage(data);
@@ -441,6 +522,18 @@
                     }
                 },
                 methods: {
+                    acceptCookies() {
+                        this.allowCookies = true;
+                        $('#cookieBanner').hide();
+                    },
+
+                    declineCookies() {
+                        this.allowCookies = false;
+                        $('#cookieBanner').hide();
+                    },
+                    toggleCookiesBanner() {
+                        $('#cookieBanner').toggleClass('active');
+                    },
                     hasDarkMode() {
                         return $('body').hasClass('dark-mode');
                     },
@@ -650,49 +743,26 @@
                     }
                 },
                 created() {
-                    if (!initialData) {
+                    if (!this.allowCookies) {
+                        $('#cookieBanner').addClass('active');
+                    }
+
+                    if (!this.presetCount) {
                         this.addPreset();
-                    } else {
-                        this.$nextTick(() => {
-                            this.updateComparison();
-                        });
-                        const isDarkMode = this.hasDarkMode();
-                        if (this.isDarkMode && !isDarkMode) {
-                            this.isDarkMode = false; // switch to light mode before togging dark mode
-                            this.toggleDarkMode();
-                        }else if(!this.isDarkMode && isDarkMode){
-                            this.toggleDarkMode();
-                        }
+                    }
+
+                    this.$nextTick(() => {
+                        this.updateComparison();
+                    });
+                    const isDarkMode = this.hasDarkMode();
+                    if (this.isDarkMode && !isDarkMode) {
+                        this.isDarkMode = false; // switch to light mode before togging dark mode
+                        this.toggleDarkMode();
+                    } else if (!this.isDarkMode && isDarkMode) {
+                        this.toggleDarkMode();
                     }
                 }
             });
-
-            function rerenderSelect2(vueContext) {
-                $('.select2').each(function () {
-                    $(this).select2();
-                    $(this).on('change', (event) => {
-                        const presetId = event.target.id.split('_')[0].replace('mod', '');
-                        const index = event.target.id.split('_')[1];
-                        vueContext.onEchoSlotChange(event, presetId, index);
-                    });
-                });
-            }
-
-            function newPreset(presetId) {
-                return {
-                    presetId: presetId,
-                    presetName: '',
-                    totalAtkBonus: 0,
-                    totalElemBonus: 0,
-                    totalCritRateBonus: 0,
-                    totalCritDamageBonus: 0,
-                    formula: '',
-                    result: '',
-                    equippedEchoes: Array(5).fill({}),
-                    totalCost: 0,
-                    totalExpectedDamage: 0
-                }
-            }
         });
     </script>
 </body>
