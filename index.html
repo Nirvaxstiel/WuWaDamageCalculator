@@ -51,7 +51,7 @@
             padding-top: 10px;
         }
 
-        .latex {
+        .katex-element {
             display: flex;
             justify-content: center;
             align-items: center;
@@ -408,7 +408,9 @@
                                 <h4>Total Cost: {{ item.totalCost }}</h4>
                             </div>
                             <div class="katex-content mt-3">
-                                <div class="latex" v-bind:id="`formula${item.presetId}`" v-html="item.formula"></div>
+                                <div class="katex-element w-100" v-bind:id="`formula${item.presetId}`"
+                                    v-html="item.formula">
+                                </div>
                             </div>
                             <div class="result mt-3" v-model="item.result" v-bind:id="`result${item.presetId}`">
                                 <h4> {{ item.result }}</h4>
@@ -440,6 +442,16 @@
                 });
             }
 
+            function rerenderKatex() {
+                $('.katex-element').each(function () {
+                    renderMathInElement(this, {
+                        delimiters: [
+                            { left: "\\[", right: "\\]", display: true }
+                        ]
+                    });
+                });
+            }
+
             function defaultAppData() {
                 return {
                     buildPresets: [],
@@ -462,6 +474,12 @@
                     isDarkMode: false,
                     allowCookies: false
                 }
+            }
+
+            function updateBarChart(labels, data) {
+                window.barChart.data.labels = labels;
+                window.barChart.data.datasets[0].data = data;
+                window.barChart.update();
             }
 
             function newPreset(presetId) {
@@ -639,48 +657,43 @@
 
                         const baseDamage = 1 * (1.00 + atkBonus);
                         const nonCritDamage = baseDamage * (1 - critRate);
-                        const critDamageOutput = baseDamage * (critDamage + 1) * critRate;
+                        const critDamageOutput = baseDamage * critDamage * critRate;
                         const totalDamage = (nonCritDamage + critDamageOutput) * elementalBonus;
 
-                        let atkBonusText = atkMods > 0 ? `(18\\% \\times ${atkMods})` : '';
-                        let atk3BonusText = atk3Mods > 0 ? `30\\% \\times ${atk3Mods}` : '';
-                        let setAtkBonusText = parseFloat(document.getElementById(`totalAtkBonus${presetId}`).value) > 0 ? ` ${parseFloat(document.getElementById(`totalAtkBonus${presetId}`).value)}\\%` : '';
+                        let atkBonusText = atkMods ? `(18\\% \\times ${atkMods})` : '';
+                        let atk3BonusText = atk3Mods ? `(30\\% \\times ${atk3Mods})` : '';
+                        let setAtkBonusText = item.totalAtkBonus ? ` ${item.totalAtkBonus}\\%` : '';
                         let atkText = [atkBonusText, atk3BonusText, setAtkBonusText].filter(Boolean).join(' + ');
 
                         const formula = `
                             \\begin{aligned}
-                            & \\text{Base Damage:} & 1 ${atkText ? '+' : ''} ${atkText} = ${baseDamage.toFixed(2)} \\\\
-                            & \\text{Base Crit Chance:} & 0.05 + ${(critRate - 0.05).toFixed(2)} = ${critRate.toFixed(2)} \\\\
-                            & \\text{Base Crit Damage:} & 1.5 + ${(critDamage - 1.5).toFixed(2)} = ${critDamage.toFixed(2)} \\\\
-                            & \\text{Elemental Multiplier:} & 1 + ${(elementalBonus - 1).toFixed(2)} = ${elementalBonus.toFixed(2)} \\\\
+                            & \\text{Base Damage:} & 1 ${atkText ? '+' : ''} ${atkText} = ${baseDamage.toFixed(3)} \\\\
+                            & \\text{Base Crit Chance:} & 0.05 + ${(critRate - 0.05).toFixed(3)} = ${critRate.toFixed(3)} \\\\
+                            & \\text{Base Crit Damage:} & 1.5 + ${(critDamage - 1.5).toFixed(3)} = ${critDamage.toFixed(3)} \\\\
+                            & \\text{Elemental Multiplier:} & 1 + ${(elementalBonus - 1).toFixed(3)} = ${elementalBonus.toFixed(3)} \\\\
                             & \\\\
                             
-                            & \\text{Non-Crit Damage:} & (1 - ${critRate.toFixed(2)}) \\times ${baseDamage.toFixed(2)} = ${nonCritDamage.toFixed(2)} \\\\
-                            & \\text{Crit Damage:} & ${critRate.toFixed(2)} \\times ${baseDamage.toFixed(2)} \\times (${critDamage.toFixed(2)} + 1) = ${critDamageOutput.toFixed(2)} \\\\
-                            & \\text{Total Damage:} & (${nonCritDamage.toFixed(2)} + ${critDamageOutput.toFixed(2)}) \\times ${elementalBonus.toFixed(2)} = ${totalDamage.toFixed(2)}
+                            & \\text{Non-Crit Damage:} & (1 - ${critRate.toFixed(3)}) \\times ${baseDamage.toFixed(3)} = ${nonCritDamage.toFixed(3)} \\\\
+                            & \\text{Crit Damage:} & ${critRate.toFixed(3)} \\times ${baseDamage.toFixed(3)} \\times ${critDamage.toFixed(3)} = ${critDamageOutput.toFixed(3)} \\\\
+                            & \\text{Total Damage:} & (${nonCritDamage.toFixed(3)} + ${critDamageOutput.toFixed(3)}) \\times ${elementalBonus.toFixed(3)} = ${totalDamage.toFixed(3)}
                             \\end{aligned}
                         `;
                         item.formula = katex.renderToString(formula, {
                             throwOnError: false
                         });
 
-                        renderMathInElement(document.getElementById(`formula${presetId}`), {
-                            delimiters: [
-                                { left: "\\[", right: "\\]", display: true }
-                            ]
-                        });
-                        item.result = `Total Damage: ${totalDamage.toFixed(2)}`;
+                        item.result = `Total Damage: ${totalDamage.toFixed(3)}`;
                         item.totalExpectedDamage = totalDamage
                         this.updateComparison();
                     },
                     updateComparison() {
-                        if (this.buildPresets.length < 2) {
-                            $('#comparisonContainer').html('<canvas id="comparisonChart"></canvas>');
-                            return;
-                        }
-
                         const labels = [];
                         const data = [];
+
+                        if (!this.buildPresets || !this.buildPresets.length || this.buildPresets.length < 2) {
+                            updateBarChart(labels, data);
+                            return;
+                        }
 
                         this.buildPresets.forEach((buildPreset, index) => {
                             let name = `Preset ${index + 1}`;
@@ -693,9 +706,7 @@
 
                         const ctx = document.getElementById('comparisonChart').getContext('2d');
                         if (window.barChart) {
-                            window.barChart.data.labels = labels;
-                            window.barChart.data.datasets[0].data = data;
-                            window.barChart.update();
+                            updateBarChart(labels, data);
                         } else {
                             window.barChart = new Chart(ctx, {
                                 type: 'bar',
@@ -722,9 +733,10 @@
                     addPreset() {
                         const preset = newPreset(this.presetCount);
                         this.buildPresets.push(preset);
+                        this.updateDamage(preset.presetId);
                         this.$nextTick(function () {
                             rerenderSelect2(this);
-                            this.updateDamage(preset.presetId);
+                            rerenderKatex();
                         });
                     },
                     removePreset(presetId) {
